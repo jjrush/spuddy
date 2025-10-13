@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package potato;
+
+import "potato.proto";
+import "environment.proto";
+
+// ════════════════════════════════════════════════════════════
+// gRPC Service Definitions
+// ════════════════════════════════════════════════════════════
+
+// ───────────────────────────────────────────────────────────
+// Physics Engine Service (C++ GCC implementation)
+// ───────────────────────────────────────────────────────────
+
+// Request to calculate DNA mutation based on growth and environment
+message MutationRequest {
+  string potato_id = 1;
+  PotatoGrowth current_growth = 2;
+  EnvironmentSnapshot environment = 3;
+
+  // Simulation parameters
+  float mutation_factor = 4;      // 0.0-1.0 (influences mutation likelihood)
+  bool allow_beneficial = 5;      // Allow beneficial mutations
+  bool allow_detrimental = 6;     // Allow harmful mutations
+}
+
+// Response containing calculated DNA
+message MutationResponse {
+  string potato_id = 1;
+  PotatoDNA dna = 2;
+
+  // Calculation metadata
+  bool mutation_occurred = 3;
+  string mutation_reason = 4;     // Why mutation happened (if any)
+  float computation_time_ms = 5;  // Processing time
+
+  // Physics details
+  map<string, float> physics_metrics = 6; // Forces, stresses, etc.
+}
+
+// Request to simulate growth over time
+message GrowthSimulationRequest {
+  string potato_id = 1;
+  PotatoSpec spec = 2;
+  EnvironmentSnapshot environment = 3;
+
+  // Simulation parameters
+  int32 simulation_days = 4;      // How many days to simulate
+  float time_step_hours = 5;      // Granularity (default: 24.0 = daily)
+}
+
+// Streaming response for growth simulation
+message GrowthSimulationUpdate {
+  string potato_id = 1;
+  int32 day = 2;                  // Which day of simulation
+  PotatoGrowth growth = 3;
+
+  // Step metadata
+  repeated string events = 4;     // Events during this step
+  bool is_final = 5;              // Whether this is the last update
+}
+
+// Request for physics health check
+message PhysicsHealthRequest {
+  string requester = 1;
+}
+
+// Response for health check
+message PhysicsHealthResponse {
+  bool healthy = 1;
+  string version = 2;
+  int64 uptime_seconds = 3;
+  int64 requests_processed = 4;   // Total requests since startup
+  float avg_processing_time_ms = 5;
+
+  // System resources
+  int32 active_threads = 6;
+  float cpu_usage = 7;
+  float memory_mb = 8;
+}
+
+// Main Physics Engine Service
+service PhysicsEngine {
+  // Calculate DNA mutation based on growth and environmental factors
+  // Unary RPC: request -> response
+  rpc CalculateMutation(MutationRequest) returns (MutationResponse);
+
+  // Simulate potato growth over time
+  // Server streaming RPC: request -> stream of updates
+  rpc SimulateGrowth(GrowthSimulationRequest) returns (stream GrowthSimulationUpdate);
+
+  // Health check for monitoring
+  rpc HealthCheck(PhysicsHealthRequest) returns (PhysicsHealthResponse);
+}
+
+// ───────────────────────────────────────────────────────────
+// Analytics Service (Go implementation)
+// ───────────────────────────────────────────────────────────
+
+// Batch analysis request
+message BatchAnalysisRequest {
+  repeated string potato_ids = 1;
+  bool include_predictions = 2;   // Whether to run growth predictions
+  bool include_mutations = 3;     // Whether to calculate mutations
+}
+
+// Analysis result for a single potato
+message AnalysisResult {
+  string potato_id = 1;
+  PotatoState state = 2;
+
+  // Quality scores
+  float quality_score = 3;        // 0.0-1.0
+  float market_value = 4;         // Estimated value in USD
+
+  // Predictions
+  int32 days_to_maturity = 5;
+  float predicted_yield_grams = 6;
+
+  // Analysis metadata
+  int64 analyzed_at = 7;
+  string analyzer_version = 8;
+}
+
+// Batch analysis response
+message BatchAnalysisResponse {
+  repeated AnalysisResult results = 1;
+
+  // Batch statistics
+  float avg_quality = 2;
+  int32 total_analyzed = 3;
+  float processing_time_ms = 4;
+}
+
+// Analytics service (called by other services, implemented in Go)
+service Analytics {
+  // Analyze a batch of potatoes
+  rpc AnalyzeBatch(BatchAnalysisRequest) returns (BatchAnalysisResponse);
+}
+
+// ───────────────────────────────────────────────────────────
+// Common Messages for Service Communication
+// ───────────────────────────────────────────────────────────
+
+// Generic error response
+message ErrorResponse {
+  string error_code = 1;
+  string error_message = 2;
+  string service_name = 3;
+  int64 timestamp = 4;
+  map<string, string> details = 5;
+}
+
+// Generic success acknowledgment
+message Ack {
+  bool success = 1;
+  string message = 2;
+  int64 timestamp = 3;
+}

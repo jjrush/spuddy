@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package potato;
+
+// ════════════════════════════════════════════════════════════
+// Environmental Conditions Domain Messages
+// ════════════════════════════════════════════════════════════
+
+// Soil conditions affecting potato growth
+message SoilConditions {
+  string potato_id = 1;           // Which potato this affects
+
+  // Soil composition
+  string soil_type = 2;           // "clay", "loam", "sandy", "silt", "peat"
+  float organic_matter = 3;       // 0.0-1.0 (percentage)
+
+  // Physical properties
+  float moisture_level = 4;       // 0.0-1.0 (saturation percentage)
+  float temperature_celsius = 5;  // Soil temperature
+  float compaction = 6;           // 0.0-1.0 (soil density)
+  float drainage_rate = 7;        // 0.0-1.0 (how quickly water drains)
+
+  // Chemical properties
+  float ph_level = 8;             // 0.0-14.0 (ideal: 5.5-6.5 for potatoes)
+  float nitrogen_ppm = 9;         // Parts per million
+  float phosphorus_ppm = 10;      // Parts per million
+  float potassium_ppm = 11;       // Parts per million (NPK nutrients)
+
+  // Biological factors
+  float microbial_activity = 12;  // 0.0-1.0 (beneficial microbe density)
+  repeated string pests = 13;     // Active pests: "aphid", "wireworm", "beetle"
+  repeated string diseases = 14;  // Soil-borne diseases: "blight", "scab", "rot"
+
+  int64 measured_at = 15;         // Unix timestamp
+}
+
+// Weather and atmospheric conditions
+message WeatherData {
+  string potato_id = 1;
+
+  // Temperature
+  float air_temp_celsius = 2;     // Current air temperature
+  float temp_min_celsius = 3;     // Daily minimum (last 24h)
+  float temp_max_celsius = 4;     // Daily maximum (last 24h)
+
+  // Precipitation
+  float rainfall_mm = 5;          // Rainfall in last hour
+  float rainfall_24h_mm = 6;      // Total rainfall last 24 hours
+  float humidity = 7;             // 0.0-1.0 (relative humidity)
+
+  // Light
+  float sunlight_hours = 8;       // Hours of direct sunlight today
+  float uv_index = 9;             // UV index (0-11+)
+  float light_intensity = 10;     // 0.0-1.0 (current light level)
+
+  // Wind
+  float wind_speed_kmh = 11;      // Wind speed in km/h
+  string wind_direction = 12;     // "N", "NE", "E", "SE", "S", "SW", "W", "NW"
+
+  // Atmospheric
+  float pressure_hpa = 13;        // Atmospheric pressure
+  string weather_condition = 14;  // "clear", "cloudy", "rain", "storm", "snow"
+
+  int64 measured_at = 15;         // Unix timestamp
+}
+
+// Environmental stressors and events
+message EnvironmentalStress {
+  string potato_id = 1;
+
+  // Stress types
+  enum StressType {
+    NONE = 0;
+    DROUGHT = 1;
+    FLOODING = 2;
+    HEAT = 3;
+    COLD = 4;
+    FROST = 5;
+    HAIL = 6;
+    NUTRIENT_DEFICIENCY = 7;
+    PEST_INFESTATION = 8;
+    DISEASE = 9;
+  }
+  repeated StressType active_stresses = 2;
+
+  // Stress intensity
+  float overall_stress_level = 3;  // 0.0-1.0 (cumulative stress)
+
+  // Duration
+  map<string, int32> stress_duration_hours = 4; // How long each stress has been active
+
+  // Impact prediction
+  float predicted_growth_impact = 5;   // -1.0 to 1.0 (negative = stunted, positive = enhanced)
+  float predicted_mutation_chance = 6; // 0.0-1.0 (likelihood of genetic mutation)
+
+  int64 assessed_at = 7;
+}
+
+// Complete environmental snapshot
+message EnvironmentSnapshot {
+  string potato_id = 1;
+
+  // Core environmental data
+  SoilConditions soil = 2;
+  WeatherData weather = 3;
+  EnvironmentalStress stress = 4;
+
+  // Location (if tracking multiple plots)
+  string plot_id = 5;             // Physical location identifier
+  float latitude = 6;
+  float longitude = 7;
+
+  // Season and time
+  string season = 8;              // "spring", "summer", "fall", "winter"
+  int32 day_of_year = 9;          // 1-365
+
+  // Snapshot metadata
+  int64 snapshot_timestamp = 10;
+  int32 snapshot_version = 11;    // Incremented on each update
+  string source_sensor = 12;      // Sensor or service that provided data
+}
+
+// Time-series environmental reading (for DDS streaming)
+message EnvironmentReading {
+  string potato_id = 1;
+
+  // Quick readings (high-frequency updates)
+  float soil_moisture = 2;
+  float soil_temp = 3;
+  float air_temp = 4;
+  float light_level = 5;
+
+  // Reading metadata
+  int64 timestamp = 6;
+  int32 sequence_number = 7;      // For ordering out-of-order messages
+  string sensor_id = 8;
+}
