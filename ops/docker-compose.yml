@@ -1,0 +1,132 @@
+version: '3.8'
+
+# ════════════════════════════════════════════════════════════
+# Potato Simulator - Local Development Environment
+# ════════════════════════════════════════════════════════════
+
+networks:
+  potato-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+services:
+  # ─────────────────────────────────────────────────────────
+  # MQTT Broker (for pub/sub messaging)
+  # ─────────────────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: potato-mosquitto
+    ports:
+      - "1883:1883"  # MQTT port (exposed for local testing)
+      - "9001:9001"  # WebSocket port (optional)
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - potato-net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────
+  # C++ Physics Service (GCC 13, C++17, gRPC Server)
+  # ─────────────────────────────────────────────────────────
+  cpp-physics:
+    build:
+      context: ../services/cpp-dual
+      dockerfile: Dockerfile
+    image: potato/cpp-dual:latest
+    container_name: potato-physics
+    command: /usr/local/bin/physics_service
+    ports:
+      - "50051:50051"  # gRPC port (exposed for testing)
+    environment:
+      - SERVICE_NAME=physics
+      - LOG_LEVEL=info
+      - GRPC_PORT=50051
+    networks:
+      - potato-net
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+
+  # ─────────────────────────────────────────────────────────
+  # C++ Growth Service (Clang 16, C++23, MQTT Publisher)
+  # ─────────────────────────────────────────────────────────
+  cpp-growth:
+    image: potato/cpp-dual:latest  # Reuses same image!
+    container_name: potato-growth
+    command: /usr/local/bin/growth_service
+    environment:
+      - SERVICE_NAME=growth
+      - LOG_LEVEL=info
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=potato/growth
+    networks:
+      - potato-net
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - cpp-physics
+
+  # ─────────────────────────────────────────────────────────
+  # Future Services (placeholders - implement later)
+  # ─────────────────────────────────────────────────────────
+
+  # go-analytics:
+  #   build: ../services/go-analytics
+  #   container_name: potato-analytics
+  #   environment:
+  #     - PHYSICS_SERVICE=cpp-physics:50051
+  #   networks:
+  #     - potato-net
+  #   depends_on:
+  #     - cpp-physics
+
+  # c-renderer:
+  #   build: ../services/c-renderer
+  #   container_name: potato-renderer
+  #   environment:
+  #     - MQTT_BROKER=mosquitto:1883
+  #     - MQTT_TOPIC=potato/growth
+  #   networks:
+  #     - potato-net
+  #   depends_on:
+  #     - mosquitto
+
+  # cpp-environment:
+  #   image: potato/cpp-dual:latest
+  #   container_name: potato-environment
+  #   command: /usr/local/bin/environment_service
+  #   cap_add:
+  #     - NET_ADMIN  # For DDS multicast
+  #   networks:
+  #     - potato-net
+
+  # rust-dna:
+  #   build: ../services/rust-dna
+  #   container_name: potato-dna
+  #   cap_add:
+  #     - NET_ADMIN  # For DDS multicast
+  #   networks:
+  #     - potato-net
+
+  # ─────────────────────────────────────────────────────────
+  # Observability (optional - add later)
+  # ─────────────────────────────────────────────────────────
+
+  # opensearch:
+  #   image: opensearchproject/opensearch:2.11.0
+  #   container_name: potato-opensearch
+  #   environment:
+  #     - discovery.type=single-node
+  #     - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+  #   ports:
+  #     - "9200:9200"
+  #   networks:
+  #     - potato-net
+  #   volumes:
+  #     - opensearch-data:/usr/share/opensearch/data
+
+# volumes:
+#   opensearch-data:
